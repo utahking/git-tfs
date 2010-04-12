@@ -5,7 +5,6 @@ using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
 using GitSharp.Core;
-using Sep.Git.Tfs.Util;
 using StructureMap;
 using FileMode=GitSharp.Core.FileMode;
 
@@ -19,11 +18,14 @@ namespace Sep.Git.Tfs.Core
 
         public GitRepository(TextWriter stdout, string gitDir) : base(stdout)
         {
-            GitDir = gitDir;
             _repository = new Repository(new DirectoryInfo(gitDir));
         }
 
-        private string GitDir { get; set; }
+        private string GitDir
+        {
+            get { return _repository.Directory.Name; }
+        }
+
         public string WorkingCopyPath { get; set; }
         public string WorkingCopySubdir { get; set; }
 
