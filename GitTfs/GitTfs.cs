@@ -46,6 +46,8 @@ namespace Sep.Git.Tfs
                 Environment.ExitCode = command.Run(unparsedArgs);
                 //PostFetchCheckout();
             }
+            if(globals.Repository != null && globals.Repository.Repository != null)
+                globals.Repository.Repository.Close();
         }
 
         private string MakeVersionString()

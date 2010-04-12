@@ -45,7 +45,7 @@ namespace Sep.Git.Tfs.Commands
             var gitRepositoryPath = args.Count == 3 ? args[2] : ".";
             DoGitInitDb(gitRepositoryPath);
             GitTfsInit(tfsUrl, tfsRepositoryPath);
-            ((GitSharp.Core.Repository)globals.Repository.Repository).Config.save();
+            globals.Repository.Repository.Config.Persist();
             return GitTfsExitCodes.OK;
         }
 
