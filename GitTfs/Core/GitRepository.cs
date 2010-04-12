@@ -92,27 +92,20 @@ namespace Sep.Git.Tfs.Core
         private IDictionary<string, IGitTfsRemote> ReadTfsRemotes()
         {
             var remotes = new Dictionary<string, IGitTfsRemote>();
-            CommandOutputPipe(stdout => ParseRemoteConfig(stdout, remotes), "config", "-l");
+            foreach (var configEntry in _repository.Config)
+            {
+                TryParseRemoteConfigLine(remotes, configEntry.Key, configEntry.Value);
+            }
             return remotes;
         }
 
-        private void ParseRemoteConfig(TextReader stdout, IDictionary<string, IGitTfsRemote> remotes)
+        private void TryParseRemoteConfigLine(IDictionary<string, IGitTfsRemote> remotes, string configKey, string value)
         {
-            string line;
-            while ((line = stdout.ReadLine()) != null)
+            var keyParts = configKey.Split('.');
+            if (keyParts.Length == 3 && keyParts[0] == "tfs-remote")
             {
-                TryParseRemoteConfigLine(line, remotes);
-            }
-        }
-
-        private void TryParseRemoteConfigLine(string line, IDictionary<string, IGitTfsRemote> remotes)
-        {
-            var match = configLineRegex.Match(line);
-            if (match.Success)
-            {
-                var key = match.Groups["key"].Value;
-                var value = match.Groups["value"].Value;
-                var remoteId = match.Groups["id"].Value;
+                var remoteId = keyParts[1];
+                var key = keyParts[2];
                 var remote = remotes.ContainsKey(remoteId)
                                  ? remotes[remoteId]
                                  : (remotes[remoteId] = CreateRemote(remoteId));
