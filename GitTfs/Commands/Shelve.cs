@@ -42,8 +42,7 @@ namespace Sep.Git.Tfs.Commands
             {
                 case 1:
                     var changeset = tfsParents.First();
-                    changeset.Remote.Shelve(shelvesetName, refToShelve, changeset);
-                    return GitTfsExitCodes.OK;
+                    return DoShelve(shelvesetName, refToShelve, changeset);
                 case 0:
                     stdout.WriteLine("No TFS parents found!");
                     return GitTfsExitCodes.InvalidArguments;
@@ -54,6 +53,20 @@ namespace Sep.Git.Tfs.Commands
                         stdout.WriteLine("  " + parent.Remote.Id);
                     }
                     return GitTfsExitCodes.InvalidArguments;
+            }
+        }
+
+        private int DoShelve(string shelvesetName, string refToShelve, TfsChangesetInfo changeset)
+        {
+            if (checkinOptions.Force || !changeset.Remote.Tfs.ShelvesetExists(shelvesetName))
+            {
+                changeset.Remote.Shelve(shelvesetName, refToShelve, changeset);
+                return GitTfsExitCodes.OK;
+            }
+            else
+            {
+                stdout.WriteLine("Shelveset \"" + shelvesetName + "\" already exists. Use '-f' to overwrite it.");
+                return GitTfsExitCodes.InvalidArguments;
             }
         }
     }

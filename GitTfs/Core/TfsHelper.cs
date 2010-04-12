@@ -130,6 +130,12 @@ namespace Sep.Git.Tfs.Core
             }
         }
 
+        public bool ShelvesetExists(string shelvesetName)
+        {
+            var shelvesets = VersionControl.QueryShelvesets(shelvesetName, null);
+            return shelvesets != null && shelvesets.Length != 0;
+        }
+
         private Workspace GetWorkspace(string localDirectory, string repositoryPath)
         {
             var workspace = VersionControl.CreateWorkspace(GenerateWorkspaceName());
