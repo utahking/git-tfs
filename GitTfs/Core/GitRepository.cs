@@ -7,7 +7,6 @@ using System.Text.RegularExpressions;
 using GitSharp.Core;
 using StructureMap;
 using FileMode=GitSharp.Core.FileMode;
-using CoreRepository=GitSharp.Core.Repository;
 using Repository=GitSharp.Repository;
 
 namespace Sep.Git.Tfs.Core

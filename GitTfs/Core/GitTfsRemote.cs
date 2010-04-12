@@ -4,6 +4,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
+using GitSharp.Core;
 using Sep.Git.Tfs.Commands;
 
 namespace Sep.Git.Tfs.Core
@@ -140,9 +141,25 @@ namespace Sep.Git.Tfs.Core
         {
             MaxCommitHash = commitHash;
             MaxChangesetId = changesetId;
-            Repository.CommandNoisy("update-ref", "-m", "C" + MaxChangesetId, RemoteRef, MaxCommitHash);
-            Repository.CommandNoisy("update-ref", TagPrefix + "C" + MaxChangesetId, MaxCommitHash);
+            UpdateRef(RemoteRef, MaxCommitHash, "C" + MaxChangesetId);
+            UpdateRef(TagPrefix + "C" + MaxChangesetId, MaxCommitHash);
             LogCurrentMapping();
+        }
+
+        private void UpdateRef(string refName, string commit)
+        {
+            UpdateRef(refName, commit, null);
+        }
+
+        private void UpdateRef(string refName, string commit, string reason)
+        {
+            var updateCommand = ((Repository)Repository.Repository).UpdateRef(refName);
+            updateCommand.NewObjectId = ObjectId.FromString(commit);
+            if (!String.IsNullOrEmpty(reason))
+            {
+                updateCommand.setRefLogMessage(reason, false);
+            }
+            updateCommand.update();
         }
 
         private void LogCurrentMapping()
