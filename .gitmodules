@@ -1,0 +1,3 @@
+[submodule "ext/GitSharp"]
+	path = ext/GitSharp
+	url = git://github.com/henon/GitSharp.git

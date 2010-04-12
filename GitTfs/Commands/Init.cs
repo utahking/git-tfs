@@ -4,6 +4,7 @@ using System.ComponentModel;
 using System.IO;
 using CommandLine.OptParse;
 using GitSharp;
+using GitSharp.Commands;
 using Sep.Git.Tfs.Core;
 using StructureMap;
 
