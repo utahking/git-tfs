@@ -38,6 +38,10 @@
       <SpecificVersion>False</SpecificVersion>
       <HintPath>..\lib\CSharpOptParse\CSharpOptParse.dll</HintPath>
     </Reference>
+    <Reference Include="GitSharp, Version=0.2.0.0, Culture=neutral, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>..\lib\GitSharp-0.2\GitSharp.dll</HintPath>
+    </Reference>
     <Reference Include="GitSharp.Core, Version=0.2.0.0, Culture=neutral, processorArchitecture=MSIL">
       <SpecificVersion>False</SpecificVersion>
       <HintPath>..\lib\GitSharp-0.2\GitSharp.Core.dll</HintPath>

@@ -7,6 +7,8 @@ using System.Text.RegularExpressions;
 using GitSharp.Core;
 using StructureMap;
 using FileMode=GitSharp.Core.FileMode;
+using CoreRepository=GitSharp.Core.Repository;
+using Repository=GitSharp.Repository;
 
 namespace Sep.Git.Tfs.Core
 {
@@ -14,16 +16,21 @@ namespace Sep.Git.Tfs.Core
     {
         private static readonly Regex configLineRegex = new Regex("^tfs-remote\\.(?<id>[^.]+)\\.(?<key>[^.=]+)=(?<value>.*)$");
         private IDictionary<string, IGitTfsRemote> _cachedRemotes;
-        private Repository _repository;
+        private readonly Repository _repository;
 
-        public GitRepository(TextWriter stdout, string gitDir) : base(stdout)
+        public GitRepository(TextWriter stdout, Repository repository) : base(stdout)
         {
-            _repository = new Repository(new DirectoryInfo(gitDir));
+            _repository = repository;
         }
 
-        private string GitDir
+        public Repository Repository
         {
-            get { return _repository.Directory.Name; }
+            get { return _repository; }
+        }
+
+        public string GitDir
+        {
+            get { return _repository.Directory; }
         }
 
         public string WorkingCopyPath { get; set; }

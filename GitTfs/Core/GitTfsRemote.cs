@@ -66,7 +66,7 @@ namespace Sep.Git.Tfs.Core
         {
             get
             {
-                return Ext.CombinePaths(globals.GitDir, "tfs", Id);
+                return Ext.CombinePaths(Repository.GitDir, "tfs", Id);
             }
         }
 

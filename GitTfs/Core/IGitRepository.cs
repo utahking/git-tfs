@@ -1,5 +1,6 @@
 ﻿using System.Collections.Generic;
 using System.IO;
+using GitSharp;
 
 namespace Sep.Git.Tfs.Core
 {
@@ -16,5 +17,7 @@ namespace Sep.Git.Tfs.Core
         IEnumerable<IGitChangedFile> GetChangedFiles(string from, string to);
         string GetChangeSummary(string from, string to);
         void GetBlob(string sha, string outputFile);
+        string GitDir { get; }
+        Repository Repository { get; }
     }
 }

@@ -1,5 +1,6 @@
 ﻿using System;
 using System.IO;
+using GitSharp;
 
 namespace Sep.Git.Tfs.Core
 {
@@ -13,5 +14,6 @@ namespace Sep.Git.Tfs.Core
         void CommandInputOutputPipe(Action<TextWriter, TextReader> interact, params string[] command);
         void WrapGitCommandErrors(string exceptionMessage, Action action);
         IGitRepository MakeRepository(string dir);
+        IGitRepository MakeRepository(Repository repository);
     }
 }

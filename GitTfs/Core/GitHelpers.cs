@@ -2,6 +2,7 @@ using System;
 using System.Diagnostics;
 using System.IO;
 using System.Text.RegularExpressions;
+using GitSharp;
 using StructureMap;
 
 namespace Sep.Git.Tfs.Core
@@ -219,6 +220,8 @@ namespace Sep.Git.Tfs.Core
             startInfo.RedirectStandardError = true;
             initialize(startInfo);
             Trace.WriteLine("Starting process: " + startInfo.FileName + " " + startInfo.Arguments, "git command");
+            Trace.WriteLine("  Working directory: " + startInfo.WorkingDirectory);
+            Trace.WriteLine("  ENV[GIT_DIR]:      " + startInfo.EnvironmentVariables["GIT_DIR"]);
             var process = Process.Start(startInfo);
             process.ErrorDataReceived += StdErrReceived;
             process.BeginErrorReadLine();
@@ -252,8 +255,13 @@ namespace Sep.Git.Tfs.Core
 
         public IGitRepository MakeRepository(string dir)
         {
+            return MakeRepository(new Repository(dir));
+        }
+
+        public IGitRepository MakeRepository(Repository repository)
+        {
             return ObjectFactory
-                .With("gitDir").EqualTo(dir)
+                .With("repository").EqualTo(repository)
                 .GetInstance<IGitRepository>();
         }
 
