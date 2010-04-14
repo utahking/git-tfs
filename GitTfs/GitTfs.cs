@@ -27,7 +27,7 @@ namespace Sep.Git.Tfs
             if(RequiresValidGitRepository(command)) AssertValidGitRepository();
             var unparsedArgs = ParseOptions(command, args);
             Main(command, unparsedArgs);
-            Trace.WriteLine("number of processes executed: " + GitHelpers.NumberOfProcessesRun);
+            GitHelpers.ReportCommandsRun();
         }
 
         public void Main(GitTfsCommand command, IList<string> unparsedArgs)

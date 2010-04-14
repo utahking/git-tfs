@@ -189,7 +189,6 @@ namespace Sep.Git.Tfs.Core
 
         private void Close(Process process)
         {
-            NumberOfProcessesRun++;
             if (!process.WaitForExit((int)TimeSpan.FromSeconds(10).TotalMilliseconds))
                 throw new GitCommandException("Command did not terminate.", process);
             if(process.ExitCode != 0)
@@ -213,6 +212,7 @@ namespace Sep.Git.Tfs.Core
 
         protected virtual Process Start(string [] command, Action<ProcessStartInfo> initialize)
         {
+            Record(command);
             var startInfo = new ProcessStartInfo();
             startInfo.FileName = "git";
             startInfo.SetArguments(command);
@@ -227,6 +227,25 @@ namespace Sep.Git.Tfs.Core
             process.ErrorDataReceived += StdErrReceived;
             process.BeginErrorReadLine();
             return process;
+        }
+
+        private static readonly System.Collections.Generic.Dictionary<string, System.Collections.Generic.List<string[]>>
+    CommandsRun = new System.Collections.Generic.Dictionary<string, System.Collections.Generic.List<string[]>>();
+
+        private static void Record(string[] command)
+        {
+            if (!CommandsRun.ContainsKey(command[0]))
+                CommandsRun[command[0]] = new System.Collections.Generic.List<string[]>();
+            CommandsRun[command[0]].Add(command);
+        }
+
+        public static void ReportCommandsRun()
+        {
+            Trace.WriteLine("Commands run: " + System.Linq.Enumerable.Sum(CommandsRun, entry => entry.Value.Count));
+            foreach(var commandEntry in CommandsRun)
+            {
+                Trace.WriteLine("  " + commandEntry.Key + ": " + commandEntry.Value.Count);
+            }
         }
 
         private void StdErrReceived(object sender, DataReceivedEventArgs e)
@@ -267,7 +286,6 @@ namespace Sep.Git.Tfs.Core
         }
 
         private static readonly Regex ValidCommandName = new Regex("^[a-z0-9A-Z_-]+$");
-        public static int NumberOfProcessesRun;
 
         private static void AssertValidCommand(string[] command)
         {
