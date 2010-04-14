@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Diagnostics;
 using System.IO;
-using GitSharp;
 using GitSharp.Core;
 
 namespace Sep.Git.Tfs.Core
@@ -19,7 +18,7 @@ namespace Sep.Git.Tfs.Core
 
         private int _nr = 0;
         private GitIndex _index;
-        private GitSharp.Core.Repository _repositoryToDispose;
+        private Repository _repositoryToDispose;
 
         private GitIndexInfo(IGitRepository repository, string indexFile)
         {
@@ -30,15 +29,15 @@ namespace Sep.Git.Tfs.Core
         {
             if(String.IsNullOrEmpty(indexFile))
             {
-                _index = ((GitSharp.Core.Repository) repository.Repository).Index;
+                _index = ((Repository) repository.Repository).Index;
             }
             else
             {
-                var coreRepository = (GitSharp.Core.Repository) repository.Repository;
-                var repositoryWithTemporaryIndex = new GitSharp.Core.Repository(coreRepository.Directory,
-                                                                                coreRepository.WorkingDirectory,
-                                                                                null, null,
-                                                                                new FileInfo(indexFile));
+                var coreRepository = (Repository) repository.Repository;
+                var repositoryWithTemporaryIndex = new Repository(coreRepository.Directory,
+                                                                  coreRepository.WorkingDirectory,
+                                                                  null, null,
+                                                                  new FileInfo(indexFile));
                 _repositoryToDispose = repositoryWithTemporaryIndex;
                 _index = repositoryWithTemporaryIndex.Index;
             }
@@ -57,9 +56,25 @@ namespace Sep.Git.Tfs.Core
         {
             Trace.WriteLine("   U " + path);
             _index.RereadIfNecessary();
-            _index.add(Index.PathEncoding.GetBytes(path), stream.ReadAllBytes());
+            _Update(path, stream);
             _index.write();
             return ++_nr;
+        }
+
+        private void _Update(string path, Stream stream)
+        {
+            var writer = new ObjectWriter(_index.Repository);
+            var newSha1 = writer.WriteBlob(stream.Length, stream);
+
+            var entry = _index.GetEntry(path);
+            if (entry != null)
+            {
+                entry.ForceSet("ObjectId", newSha1);
+            }
+            else
+            {
+                _index.addEntry(new FileTreeEntry(null, newSha1, Constants.encode(path), false));
+            }
         }
 
         public void Dispose()

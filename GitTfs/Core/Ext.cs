@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Reflection;
 using System.Text.RegularExpressions;
 using CommandLine.OptParse;
 using Microsoft.TeamFoundation.VersionControl.Client;
@@ -132,6 +133,12 @@ namespace Sep.Git.Tfs.Core
             var chars = new char[length];
             var charsRead = reader.Read(chars, 0, length);
             return new string(chars, 0, charsRead);
+        }
+
+        public static void ForceSet(this object o, string propertyName, object newPropertyValue)
+        {
+            var propertyInfo = o.GetType().GetProperty(propertyName);
+            propertyInfo.SetValue(o, newPropertyValue, null);
         }
     }
 }

@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
 using Microsoft.TeamFoundation.VersionControl.Client;
@@ -92,8 +93,12 @@ namespace Sep.Git.Tfs.Core
             {
                 using (var tempFile = new TemporaryFile())
                 {
-                    index.Update(UpdateDirectoryToMatchExtantCasing(pathInGitRepo, initialTree),
-                                 change.Item.DownloadFile());
+                    change.Item.DownloadFile(tempFile);
+                    using (var fileStream = File.OpenRead(tempFile))
+                    {
+                        index.Update(UpdateDirectoryToMatchExtantCasing(pathInGitRepo, initialTree),
+                                     fileStream);
+                    }
                 }
             }
         }
