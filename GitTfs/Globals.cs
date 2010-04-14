@@ -93,7 +93,12 @@ namespace Sep.Git.Tfs
 
         public IGitRepository Repository { get; set; }
 
-        public int GcCountdown { get; set; }
+        private int _gcCountdown = 200;
+        public int GcCountdown
+        {
+            get { return _gcCountdown; }
+            set { _gcCountdown = value; }
+        }
 
         public int GcPeriod
         {
