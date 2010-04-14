@@ -92,10 +92,8 @@ namespace Sep.Git.Tfs.Core
             {
                 using (var tempFile = new TemporaryFile())
                 {
-                    change.Item.DownloadFile(tempFile);
-                    index.Update(GetMode(change, initialTree, pathInGitRepo),
-                                 UpdateDirectoryToMatchExtantCasing(pathInGitRepo, initialTree),
-                                 tempFile);
+                    index.Update(UpdateDirectoryToMatchExtantCasing(pathInGitRepo, initialTree),
+                                 change.Item.DownloadFile());
                 }
             }
         }

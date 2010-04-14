@@ -1,6 +1,8 @@
 ﻿using System;
 using System.Diagnostics;
 using System.IO;
+using GitSharp;
+using GitSharp.Core;
 
 namespace Sep.Git.Tfs.Core
 {
@@ -8,58 +10,65 @@ namespace Sep.Git.Tfs.Core
     {
         public static int Do(IGitRepository repository, Action<GitIndexInfo> indexAction)
         {
-            int nr = 0;
-            repository.CommandInputPipe(stdin => nr = Do(stdin, repository, indexAction),
-                "update-index", "-z", "--index-info");
-            return nr;
-        }
-
-        private static int Do(TextWriter stdin, IGitRepository repository, Action<GitIndexInfo> action)
-        {
-            using (var indexInfo = new GitIndexInfo(stdin, repository))
+            using (var indexInfo = new GitIndexInfo(repository, Environment.GetEnvironmentVariable("GIT_INDEX_FILE")))
             {
-                action(indexInfo);
-                return indexInfo.nr;
+                indexAction(indexInfo);
+                return indexInfo._nr;
             }
         }
 
-        private readonly TextWriter stdin;
-        private readonly IGitRepository repository;
-        private int nr = 0;
+        private int _nr = 0;
+        private GitIndex _index;
+        private GitSharp.Core.Repository _repositoryToDispose;
 
-        private GitIndexInfo(TextWriter stdin, IGitRepository repository)
+        private GitIndexInfo(IGitRepository repository, string indexFile)
         {
-            this.stdin = stdin;
-            this.repository = repository;
+            InitializeIndex(repository, indexFile);
+        }
+
+        private void InitializeIndex(IGitRepository repository, string indexFile)
+        {
+            if(String.IsNullOrEmpty(indexFile))
+            {
+                _index = ((GitSharp.Core.Repository) repository.Repository).Index;
+            }
+            else
+            {
+                var coreRepository = (GitSharp.Core.Repository) repository.Repository;
+                var repositoryWithTemporaryIndex = new GitSharp.Core.Repository(coreRepository.Directory,
+                                                                                coreRepository.WorkingDirectory,
+                                                                                null, null,
+                                                                                new FileInfo(indexFile));
+                _repositoryToDispose = repositoryWithTemporaryIndex;
+                _index = repositoryWithTemporaryIndex.Index;
+            }
         }
 
         public int Remove(string path)
         {
             Trace.WriteLine("   D " + path);
-            stdin.Write("0 ");
-            stdin.Write(new string('0', 40));
-            stdin.Write('\t');
-            stdin.Write(path);
-            stdin.Write('\0');
-            return ++nr;
+            _index.RereadIfNecessary();
+            _index.Remove(path);
+            _index.write();
+            return ++_nr;
         }
 
-        public int Update(string mode, string path, string localFile)
+        public int Update(string path, Stream stream)
         {
-            var sha = repository.HashAndInsertObject(localFile);
-            Trace.WriteLine("   U " + sha + " = " + path);
-            stdin.Write(mode);
-            stdin.Write(' ');
-            stdin.Write(sha);
-            stdin.Write('\t');
-            stdin.Write(path);
-            stdin.Write('\0');
-            return ++nr;
+            Trace.WriteLine("   U " + path);
+            _index.RereadIfNecessary();
+            _index.add(Index.PathEncoding.GetBytes(path), stream.ReadAllBytes());
+            _index.write();
+            return ++_nr;
         }
 
         public void Dispose()
         {
-            stdin.Close();
+            if(_repositoryToDispose != null)
+            {
+                _repositoryToDispose.Dispose();
+                _repositoryToDispose = null;
+            }
         }
     }
 }

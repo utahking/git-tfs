@@ -84,6 +84,24 @@ namespace Sep.Git.Tfs.Core
             }
         }
 
+        // based on http://programmingisawesome.com/post/186368071/readallbytes-for-arbitrary-streams-in-c
+        public static byte[] ReadAllBytes(this Stream stream)
+        {
+            const int BUFF_SIZE = 1300;
+
+            int bytesRead;
+            var inStream = new BufferedStream(stream);
+            var outStream = new MemoryStream();
+
+            var buffer = new byte[BUFF_SIZE];
+            while ((bytesRead = inStream.Read(buffer, 0, BUFF_SIZE)) > 0)
+            {
+                outStream.Write(buffer, 0, bytesRead);
+            }
+
+            return outStream.GetBuffer();
+        }
+
         public static bool IsEmpty(this ICollection c)
         {
             return c == null || c.Count == 0;

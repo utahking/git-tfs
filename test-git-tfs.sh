@@ -4,7 +4,7 @@ rm -rf smoke-test || exit
 git tfs clone http://team:8080 $/sandbox smoke-test || exit
 cd smoke-test || exit
 git tfs fetch || exit
-git log --oneline
+git log --oneline --shortstat | cat
 git config -l -f .git/config
 echo ok > testfile
 git add testfile || exit
