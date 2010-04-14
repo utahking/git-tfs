@@ -143,7 +143,7 @@ namespace Sep.Git.Tfs.Core
             MaxChangesetId = changesetId;
             UpdateRef(RemoteRef, MaxCommitHash, "C" + MaxChangesetId);
             UpdateRef(TagPrefix + "C" + MaxChangesetId, MaxCommitHash);
-            LogCurrentMapping();
+            LogMapping(changesetId, commitHash);
         }
 
         private void UpdateRef(string refName, string commit)
@@ -162,9 +162,10 @@ namespace Sep.Git.Tfs.Core
             updateCommand.update();
         }
 
-        private void LogCurrentMapping()
+        private void LogMapping(long changesetId, string commit)
         {
-            stdout.WriteLine("C" + MaxChangesetId + " = " + MaxCommitHash);
+            stdout.WriteLine("C" + changesetId + " = " + commit);
+            stdout.Flush();
         }
 
         private string TagPrefix
