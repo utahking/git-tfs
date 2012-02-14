@@ -240,4 +240,7 @@
   <PropertyGroup>
     <PreBuildEvent>"$(ProjectDir)..\GetCurrentVersion" "$(GitPath)" &gt; "$(ProjectDir)GitVersionInfo"</PreBuildEvent>
   </PropertyGroup>
+  <PropertyGroup>
+    <PostBuildEvent>xcopy /y "$(SolutionDir)lib\libgit2sharp\Lib\NativeBinaries\$(PlatformName)\*.dll" "$(SolutionDir)GitTfs\$(OutDir)"</PostBuildEvent>
+  </PropertyGroup>
 </Project>
