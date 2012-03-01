@@ -386,7 +386,12 @@ namespace Sep.Git.Tfs.Core
             {
                 using (LibGit2Sharp.Repository repo = new LibGit2Sharp.Repository(GitDir))
                 {
-                    return repo.Index.RetrieveStatus().IsDirty;
+                    return (from 
+                                entry in repo.Index.RetrieveStatus()
+                            where 
+                                 entry.State != FileStatus.Ignored &&
+                                 entry.State != FileStatus.Untracked
+                            select entry).Count() > 0;
                 }
             }
         }
