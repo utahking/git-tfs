@@ -61,7 +61,12 @@ namespace Sep.Git.Tfs.Core
         {
             FileStream fstream;
             if(mode == Mode.NewFile)
+            {
+                FileInfo dest = new FileInfo(path);
+                if (!dest.Directory.Exists)
+                    dest.Directory.Create();
                 fstream = File.Create(path);
+            }
             else
                 fstream = File.OpenWrite(path);
             using(fstream)
