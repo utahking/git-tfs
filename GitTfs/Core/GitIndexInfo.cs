@@ -4,6 +4,7 @@ using System.IO;
 
 namespace Sep.Git.Tfs.Core
 {
+    [Obsolete("Replace with ChangesetCommitBuilder")]
     public class GitIndexInfo : IDisposable
     {
         public static int Do(IGitRepository repository, Action<GitIndexInfo> indexAction)

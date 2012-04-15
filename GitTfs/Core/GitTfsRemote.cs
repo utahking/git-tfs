@@ -295,24 +295,25 @@ namespace Sep.Git.Tfs.Core
 
         private LogEntry Apply(string lastCommit, ITfsChangeset changeset)
         {
-            LogEntry result = null;
-            WithTemporaryIndex(
-                () => GitIndexInfo.Do(Repository, index => result = changeset.Apply(lastCommit, index)));
-            WithTemporaryIndex(
-                () => result.Tree = Repository.CommandOneline("write-tree"));
-            if(!String.IsNullOrEmpty(lastCommit)) result.CommitParents.Add(lastCommit);
-            return result;
+            using (var changesetCommitBuilder = GetChangesetCommitBuilder(lastCommit))
+            {
+                changeset.Apply(changesetCommitBuilder);
+                return changesetCommitBuilder.GetResult();
+            }
         }
 
         private LogEntry CopyTree(string lastCommit, ITfsChangeset changeset)
         {
-            LogEntry result = null;
-            WithTemporaryIndex(
-                () => GitIndexInfo.Do(Repository, index => result = changeset.CopyTree(index)));
-            WithTemporaryIndex(
-                () => result.Tree = Repository.CommandOneline("write-tree"));
-            if (!String.IsNullOrEmpty(lastCommit)) result.CommitParents.Add(lastCommit);
-            return result;
+            using (var changesetCommitBuilder = GetChangsetCommitBuilder(lastCommit))
+            {
+                changeset.CopyTree(changesetCommitBuilder);
+                return changesetCommitBuilder.GetResult();
+            }
+        }
+
+        private ChangesetCommitBuilder GetChangesetCommitBuilder(string lastCommit)
+        {
+            return new ChangesetCommitBuilder(this, lastCommit);
         }
 
         private string Commit(LogEntry logEntry)
@@ -385,6 +386,7 @@ namespace Sep.Git.Tfs.Core
                                                  });
         }
 
+        [Obsolete("Replace with ChangesetCommitBuilder")]
         private void WithTemporaryIndex(Action action)
         {
             WithTemporaryEnvironment(() =>
