@@ -159,25 +159,31 @@ namespace Sep.Git.Tfs.Core
         {
             foreach (var changeset in FetchChangesets())
             {
-                AssertTemporaryIndexClean(MaxCommitHash);
-                var log = Apply(MaxCommitHash, changeset);
-                if (changeset.Summary.ChangesetId == mergeChangesetId)
+                //AssertTemporaryIndexClean(MaxCommitHash);
+                using (var builder = GetChangesetCommitBuilder(MaxCommitHash))
                 {
-                    foreach (var parent in parentCommitsHashes)
+                    var log = Apply(changeset, builder);
+                    if (changeset.Summary.ChangesetId == mergeChangesetId)
                     {
-                        log.CommitParents.Add(parent);
+                        foreach (var parent in parentCommitsHashes)
+                        {
+                            log.CommitParents.Add(parent);
+                        }
                     }
+                    UpdateRef(Commit(log), changeset.Summary.ChangesetId);
+                    DoGcIfNeeded();
                 }
-                UpdateRef(Commit(log), changeset.Summary.ChangesetId);
-                DoGcIfNeeded();
             }
         }
 
         public void Apply(ITfsChangeset changeset, string destinationRef)
         {
-            var log = Apply(MaxCommitHash, changeset);
-            var commit = Commit(log);
-            Repository.CommandNoisy("update-ref", destinationRef, commit);
+            using (var builder = GetChangesetCommitBuilder(MaxCommitHash))
+            {
+                var log = Apply(changeset, builder);
+                var commit = Commit(log);
+                Repository.CommandNoisy("update-ref", destinationRef, commit);
+            }
         }
 
         public void QuickFetch()
@@ -194,10 +200,13 @@ namespace Sep.Git.Tfs.Core
 
         private void quickFetch(ITfsChangeset changeset)
         {
-            AssertTemporaryIndexEmpty();
-            var log = CopyTree(MaxCommitHash, changeset);
-            UpdateRef(Commit(log), changeset.Summary.ChangesetId);
-            DoGcIfNeeded();
+            //AssertTemporaryIndexEmpty();
+            using (var builder = GetChangesetCommitBuilder(null))
+            {
+                var log = CopyTree(changeset, builder);
+                UpdateRef(Commit(log), changeset.Summary.ChangesetId);
+                DoGcIfNeeded();
+            }
         }
 
         private IEnumerable<ITfsChangeset> FetchChangesets()
@@ -257,6 +266,7 @@ namespace Sep.Git.Tfs.Core
             }
         }
 
+        [Obsolete]
         private void AssertTemporaryIndexClean(string treeish)
         {
             if(string.IsNullOrEmpty(treeish))
@@ -267,12 +277,14 @@ namespace Sep.Git.Tfs.Core
             WithTemporaryIndex(() => AssertIndexClean(treeish));
         }
 
+        [Obsolete]
         private void AssertTemporaryIndexEmpty()
         {
             if (File.Exists(IndexFile))
                 File.Delete(IndexFile);
         }
 
+        [Obsolete]
         private void AssertIndexClean(string treeish)
         {
             if (!File.Exists(IndexFile)) Repository.CommandNoisy("read-tree", treeish);
@@ -293,27 +305,24 @@ namespace Sep.Git.Tfs.Core
             }
         }
 
-        private LogEntry Apply(string lastCommit, ITfsChangeset changeset)
+        private LogEntry Apply(ITfsChangeset changeset, IChangesetConverter changesetCommitBuilder)
         {
-            using (var changesetCommitBuilder = GetChangesetCommitBuilder(lastCommit))
-            {
-                changeset.Apply(changesetCommitBuilder);
-                return changesetCommitBuilder.GetResult();
-            }
+            var logEntry = changeset.Apply(changesetCommitBuilder);
+            logEntry.Tree = changesetCommitBuilder.WriteTree();
+            return logEntry;
         }
 
-        private LogEntry CopyTree(string lastCommit, ITfsChangeset changeset)
+        private LogEntry CopyTree(ITfsChangeset changeset, IChangesetConverter changesetCommitBuilder)
         {
-            using (var changesetCommitBuilder = GetChangsetCommitBuilder(lastCommit))
-            {
-                changeset.CopyTree(changesetCommitBuilder);
-                return changesetCommitBuilder.GetResult();
-            }
+            var logEntry = changeset.CopyTree(changesetCommitBuilder);
+            logEntry.Tree = changesetCommitBuilder.WriteTree();
+            return logEntry;
         }
 
-        private ChangesetCommitBuilder GetChangesetCommitBuilder(string lastCommit)
+        private IChangesetConverter GetChangesetCommitBuilder(string lastCommit)
         {
-            return new ChangesetCommitBuilder(this, lastCommit);
+            var tree = Repository.GetObjects(lastCommit);
+            return new CasePreserver(new ChangesetCommitBuilder(this, lastCommit, tree, Repository), tree);
         }
 
         private string Commit(LogEntry logEntry)

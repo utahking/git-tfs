@@ -5,8 +5,8 @@ namespace Sep.Git.Tfs.Core
     public interface ITfsChangeset
     {
         TfsChangesetInfo Summary { get; }
-        LogEntry Apply(string lastCommit, GitIndexInfo index);
-        LogEntry CopyTree(GitIndexInfo index);
+        LogEntry Apply(IChangesetConverter converter);
+        LogEntry CopyTree(IChangesetConverter converter);
         IEnumerable<TfsTreeEntry> GetTree();
     }
 }
