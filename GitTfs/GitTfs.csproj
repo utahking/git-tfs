@@ -205,6 +205,7 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="App.config" />
+    <Compile Include="Core\Ext.Env.cs" />
     <None Include="Core\TfsInterop\README.txt" />
   </ItemGroup>
   <ItemGroup>

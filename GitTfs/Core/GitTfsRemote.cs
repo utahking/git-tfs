@@ -12,7 +12,6 @@ namespace Sep.Git.Tfs.Core
     public class GitTfsRemote : IGitTfsRemote
     {
         private static readonly Regex isInDotGit = new Regex("(?:^|/)\\.git(?:/|$)");
-        private static readonly Regex treeShaRegex = new Regex("^tree (" + GitTfsConstants.Sha1 + ")");
 
         private readonly Globals globals;
         private readonly TextWriter stdout;
@@ -159,7 +158,6 @@ namespace Sep.Git.Tfs.Core
         {
             foreach (var changeset in FetchChangesets())
             {
-                //AssertTemporaryIndexClean(MaxCommitHash);
                 using (var builder = GetChangesetCommitBuilder(MaxCommitHash))
                 {
                     var log = Apply(changeset, builder);
@@ -200,7 +198,6 @@ namespace Sep.Git.Tfs.Core
 
         private void quickFetch(ITfsChangeset changeset)
         {
-            //AssertTemporaryIndexEmpty();
             using (var builder = GetChangesetCommitBuilder(null))
             {
                 var log = CopyTree(changeset, builder);
@@ -266,45 +263,6 @@ namespace Sep.Git.Tfs.Core
             }
         }
 
-        [Obsolete]
-        private void AssertTemporaryIndexClean(string treeish)
-        {
-            if(string.IsNullOrEmpty(treeish))
-            {
-                AssertTemporaryIndexEmpty();
-                return;
-            }
-            WithTemporaryIndex(() => AssertIndexClean(treeish));
-        }
-
-        [Obsolete]
-        private void AssertTemporaryIndexEmpty()
-        {
-            if (File.Exists(IndexFile))
-                File.Delete(IndexFile);
-        }
-
-        [Obsolete]
-        private void AssertIndexClean(string treeish)
-        {
-            if (!File.Exists(IndexFile)) Repository.CommandNoisy("read-tree", treeish);
-            var currentTree = Repository.CommandOneline("write-tree");
-            var expectedCommitInfo = Repository.Command("cat-file", "commit", treeish);
-            var expectedCommitTree = treeShaRegex.Match(expectedCommitInfo).Groups[1].Value;
-            if (expectedCommitTree != currentTree)
-            {
-                Trace.WriteLine("Index mismatch: " + expectedCommitTree + " != " + currentTree);
-                Trace.WriteLine("rereading " + treeish);
-                File.Delete(IndexFile);
-                Repository.CommandNoisy("read-tree", treeish);
-                currentTree = Repository.CommandOneline("write-tree");
-                if (expectedCommitTree != currentTree)
-                {
-                    throw new Exception("Unable to create a clean temporary index: trees (" + treeish + ") " + expectedCommitTree + " != " + currentTree);
-                }
-            }
-        }
-
         private LogEntry Apply(ITfsChangeset changeset, IChangesetConverter changesetCommitBuilder)
         {
             var logEntry = changeset.Apply(changesetCommitBuilder);
@@ -322,7 +280,7 @@ namespace Sep.Git.Tfs.Core
         private IChangesetConverter GetChangesetCommitBuilder(string lastCommit)
         {
             var tree = Repository.GetObjects(lastCommit);
-            return new CasePreserver(new ChangesetCommitBuilder(this, lastCommit, tree, Repository), tree);
+            return new CasePreserver(new ChangesetCommitBuilder(this, lastCommit, tree, Repository, IndexFile), tree);
         }
 
         private string Commit(LogEntry logEntry)
@@ -352,7 +310,7 @@ namespace Sep.Git.Tfs.Core
 
         private string[] BuildCommitCommand(LogEntry logEntry)
         {
-            var tree = logEntry.Tree ?? GetTemporaryIndexTreeSha();
+            var tree = logEntry.Tree;
             tree.AssertValidSha();
             var commitCommand = new List<string> { "commit-tree", tree };
             foreach (var parent in logEntry.CommitParents)
@@ -361,13 +319,6 @@ namespace Sep.Git.Tfs.Core
                 commitCommand.Add(parent);
             }
             return commitCommand.ToArray();
-        }
-
-        private string GetTemporaryIndexTreeSha()
-        {
-            string tree = null;
-            WithTemporaryIndex(() => tree = Repository.CommandOneline("write-tree"));
-            return tree;
         }
 
         private string ParseCommitInfo(string commitTreeOutput)
@@ -384,7 +335,7 @@ namespace Sep.Git.Tfs.Core
 
         private void WithCommitHeaderEnv(LogEntry logEntry, Action action)
         {
-            WithTemporaryEnvironment(action, new Dictionary<string, string>
+            Ext.WithTemporaryEnvironment(action, new Dictionary<string, string>
                                                  {
                                                      {"GIT_AUTHOR_NAME", logEntry.AuthorName},
                                                      {"GIT_AUTHOR_EMAIL", logEntry.AuthorEmail},
@@ -393,44 +344,6 @@ namespace Sep.Git.Tfs.Core
                                                      {"GIT_COMMITTER_NAME", logEntry.CommitterName ?? logEntry.AuthorName},
                                                      {"GIT_COMMITTER_EMAIL", logEntry.CommitterEmail ?? logEntry.AuthorEmail}
                                                  });
-        }
-
-        [Obsolete("Replace with ChangesetCommitBuilder")]
-        private void WithTemporaryIndex(Action action)
-        {
-            WithTemporaryEnvironment(() =>
-                                         {
-                                             Directory.CreateDirectory(Path.GetDirectoryName(IndexFile));
-                                             action();
-                                         }, new Dictionary<string, string> {{"GIT_INDEX_FILE", IndexFile}});
-        }
-
-        private void WithTemporaryEnvironment(Action action, IDictionary<string, string> newEnvironment)
-        {
-            var oldEnvironment = new Dictionary<string, string>();
-            PushEnvironment(newEnvironment, oldEnvironment);
-            try
-            {
-                action();
-            }
-            finally
-            {
-                PushEnvironment(oldEnvironment);
-            }
-        }
-
-        private void PushEnvironment(IDictionary<string, string> desiredEnvironment)
-        {
-            PushEnvironment(desiredEnvironment, new Dictionary<string, string>());
-        }
-
-        private void PushEnvironment(IDictionary<string, string> desiredEnvironment, IDictionary<string, string> oldEnvironment)
-        {
-            foreach(var key in desiredEnvironment.Keys)
-            {
-                oldEnvironment[key] = Environment.GetEnvironmentVariable(key);
-                Environment.SetEnvironmentVariable(key, desiredEnvironment[key]);
-            }
         }
 
         public void Unshelve(string shelvesetOwner, string shelvesetName, string destinationBranch)

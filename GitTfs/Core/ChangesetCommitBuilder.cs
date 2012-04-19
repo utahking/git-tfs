@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Text.RegularExpressions;
 
@@ -17,12 +18,15 @@ namespace Sep.Git.Tfs.Core
         readonly IGitTfsRemote _remote;
         IDictionary<string, GitObject> _initialTree;
         IGitRepository _repository;
+        string _indexFile;
 
-        public ChangesetCommitBuilder(IGitTfsRemote remote, string initialTreeish, IDictionary<string, GitObject> initialTree, IGitRepository repository)
+        public ChangesetCommitBuilder(IGitTfsRemote remote, string initialTreeish, IDictionary<string, GitObject> initialTree, IGitRepository repository, string indexFile)
         {
             _remote = remote;
             _initialTree = initialTree;
             _repository = repository;
+            AssertTemporaryIndexClean(initialTreeish);
+            _indexFile = indexFile;
         }
 
         public void Dispose()
@@ -32,12 +36,12 @@ namespace Sep.Git.Tfs.Core
         public void Update(string pathInGitRepo, Stream stream)
         {
             var mode = GetMode(pathInGitRepo);
-            throw new NotImplementedException();
+            WithTemporaryIndex(() => GitIndexInfo.Do(_repository, (index) => index.Update(mode, pathInGitRepo, stream)));
         }
 
         public void Remove(string pathInGitRepo)
         {
-            throw new NotImplementedException();
+            WithTemporaryIndex(() => GitIndexInfo.Do(_repository, (index) => index.Remove(pathInGitRepo)));
         }
 
         public string WriteTree()
@@ -53,6 +57,52 @@ namespace Sep.Git.Tfs.Core
                 return _initialTree[pathInGitRepo].Mode;
             }
             return Mode.NewFile;
+        }
+
+        private void WithTemporaryIndex(Action action)
+        {
+            Ext.WithTemporaryEnvironment(() =>
+            {
+                Directory.CreateDirectory(Path.GetDirectoryName(_indexFile));
+                action();
+            }, new Dictionary<string, string> { { "GIT_INDEX_FILE", _indexFile } });
+        }
+
+        private void AssertTemporaryIndexClean(string treeish)
+        {
+            if (string.IsNullOrEmpty(treeish))
+            {
+                AssertTemporaryIndexEmpty();
+                return;
+            }
+            WithTemporaryIndex(() => AssertIndexClean(treeish));
+        }
+
+        private void AssertTemporaryIndexEmpty()
+        {
+            if (File.Exists(_indexFile))
+                File.Delete(_indexFile);
+        }
+
+        private static readonly Regex treeShaRegex = new Regex("^tree (" + GitTfsConstants.Sha1 + ")");
+        private void AssertIndexClean(string treeish)
+        {
+            if (!File.Exists(_indexFile)) _repository.CommandNoisy("read-tree", treeish);
+            var currentTree = _repository.CommandOneline("write-tree");
+            var expectedCommitInfo = _repository.Command("cat-file", "commit", treeish);
+            var expectedCommitTree = treeShaRegex.Match(expectedCommitInfo).Groups[1].Value;
+            if (expectedCommitTree != currentTree)
+            {
+                Trace.WriteLine("Index mismatch: " + expectedCommitTree + " != " + currentTree);
+                Trace.WriteLine("rereading " + treeish);
+                File.Delete(_indexFile);
+                _repository.CommandNoisy("read-tree", treeish);
+                currentTree = _repository.CommandOneline("write-tree");
+                if (expectedCommitTree != currentTree)
+                {
+                    throw new Exception("Unable to create a clean temporary index: trees (" + treeish + ") " + expectedCommitTree + " != " + currentTree);
+                }
+            }
         }
     }
 
