@@ -2,7 +2,9 @@
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.Reflection;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
+using Sep.Git.Tfs.Core;
 using Sep.Git.Tfs.Core.TfsInterop;
 
 namespace Sep.Git.Tfs.Test.Integration
@@ -47,47 +49,56 @@ namespace Sep.Git.Tfs.Test.Integration
 
         public string FakeScript
         {
-            get { return Path.Combine(Workdir, "fakescript"); }
+            get { return Path.Combine(Workdir, "_fakescript"); }
         }
 
         public void SetupFake(Action<FakeHistoryBuilder> script)
         {
-            using(var writer = File.CreateText(FakeScript))
-            {
-                script(new FakeHistoryBuilder(writer));
-            }
+            Directory.CreateDirectory(FakeScript);
+            script(new FakeHistoryBuilder(FakeScript));
         }
 
         public class FakeHistoryBuilder
         {
-            TextWriter _writer;
-            public FakeHistoryBuilder(TextWriter writer)
+            string _dir;
+            public FakeHistoryBuilder(string dir)
             {
-                _writer = writer;
+                _dir = dir;
             }
 
             public FakeChangesetBuilder Changeset(int changesetId, string message, DateTime checkinDate)
             {
-                _writer.WriteLine("[changeset {0} - {1}]\n{2}\n\n", changesetId, checkinDate, message);
-                return new FakeChangesetBuilder(_writer);
+                var changesetDir = Path.Combine(_dir, String.Format("{0}-{1}", changesetId, checkinDate.Ticks)).Tap(dir => Directory.CreateDirectory(dir));
+                File.WriteAllText(Path.Combine(changesetDir, "checkin_comment.txt"), message);
+                return new FakeChangesetBuilder(changesetDir);
             }
         }
 
         public class FakeChangesetBuilder
         {
-            TextWriter _writer;
-            public FakeChangesetBuilder(TextWriter writer)
+            string _dir;
+            int _count = 0;
+
+            public FakeChangesetBuilder(string dir)
             {
-                _writer = writer;
+                _dir = dir;
             }
 
-            public FakeChangesetBuilder Change(TfsChangeType changeType, TfsItemType itemType, string tfsPath, string contents = null)
+            public FakeChangesetBuilder Change(TfsChangeType changeType, TfsItemType itemType, string tfsPath)
             {
-                _writer.WriteLine("[{0} {1} {2}]", changeType, itemType, tfsPath);
-                if (contents != null)
-                {
-                    _writer.WriteLine(contents);
-                }
+                return Change(changeType, itemType, tfsPath, _ => {});
+            }
+
+            public FakeChangesetBuilder Change(TfsChangeType changeType, TfsItemType itemType, string tfsPath, string contents)
+            {
+                return Change(changeType, itemType, tfsPath, file => File.WriteAllText(file, contents));
+            }
+
+            public FakeChangesetBuilder Change(TfsChangeType changeType, TfsItemType itemType, string tfsPath, Action<string> writeFile)
+            {
+                _count = _count + 1;
+                File.AppendAllText(Path.Combine(_dir, "changes"), String.Format("{0}\t{1}\t{2}\t{3}\n", _count, changeType, itemType, tfsPath));
+                writeFile(Path.Combine(_dir, _count.ToString()));
                 return this;
             }
         }
@@ -104,14 +115,26 @@ namespace Sep.Git.Tfs.Test.Integration
             startInfo.WorkingDirectory = Workdir;
             startInfo.EnvironmentVariables["GIT_TFS_CLIENT"] = "Fake";
             startInfo.EnvironmentVariables["GIT_TFS_VSFAKE_SCRIPT"] = FakeScript;
-            p.EnvironmentVariables["Path"] = CurrentBuildPath + ";" + Environment.GetEnvironmentVariable("Path");
-            startInfo.FileName = "git";
-            startInfo.Arguments = "tfs " + String.Join(" ", args);
+            startInfo.EnvironmentVariables["Path"] = CurrentBuildPath + ";" + Environment.GetEnvironmentVariable("Path");
+            startInfo.FileName = @"C:\Program Files\git\cmd\git.cmd";
+            startInfo.Arguments = "tfs --debug " + String.Join(" ", args);
+            startInfo.UseShellExecute = false;
+            startInfo.RedirectStandardOutput = true;
+            Console.WriteLine("PATH: " + startInfo.EnvironmentVariables["Path"]);
+            Console.WriteLine(">> " + startInfo.FileName + " " + startInfo.Arguments);
             var process = Process.Start(startInfo);
+            Console.Out.Write(process.StandardOutput.ReadToEnd());
             process.WaitForExit();
         }
 
-        private string CurrentBuildPath { get { 
+        private string CurrentBuildPath
+        {
+            get
+            {
+                var path = new Uri(Assembly.GetExecutingAssembly().CodeBase).LocalPath;
+                return Path.GetDirectoryName(path);
+            }
+        }
 
         #endregion
 

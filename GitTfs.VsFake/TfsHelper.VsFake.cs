@@ -94,7 +94,6 @@ namespace Sep.Git.Tfs.VsFake
 
         public void EnsureAuthenticated()
         {
-            throw new NotImplementedException();
         }
 
     }

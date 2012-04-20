@@ -14,6 +14,12 @@ namespace Sep.Git.Tfs.Core
 {
     public static partial class Ext
     {
+        public static T Tap<T>(this T o, Action<T> block)
+        {
+            block(o);
+            return o;
+        }
+
         public static Action<T> And<T>(this Action<T> originalAction, params Action<T> [] additionalActions)
         {
             return x => {
